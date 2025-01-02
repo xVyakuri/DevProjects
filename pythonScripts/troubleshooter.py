@@ -10,8 +10,11 @@ import os
 import re
 import time
 
-def clear_terminal():
-    os.system("clear")
+def clear_terminal(operating_system):
+    if operating_system == "Windows":
+        os.system("cls")
+    elif operating_system == "Linux":
+        os.system("clear")
 
 def operating_system():
     # find the specific operating system: Windows, Linux,
@@ -119,13 +122,14 @@ def get_w_network():
     # ip addr, gateway, network mask, and DNS
     try:
         ipconf = subprocess.check_output(["ipconfig", "/all"], text=True)
-        hostname = re.search(r"Host Name\s*:\s*(.+)", ipconf)
-        domain = re.search(r"Primary DNS Suffix\s*:\s*(.+)", ipconf)
-        ip_addr = re.search(r"IPv4 Address\s*:\s*(.+)", ipconf)
-        gateway = re.search(r"Default Gateway\s*:\s*(.+)", ipconf)
-        net_mask = re.search(r"Subnet Mask\s*:\s*(.+)", ipconf)
+        
+        hostname = re.search(r"Host Name\s*:?\s*(.+)", ipconf)
+        domain = re.search(r"Primary DNS Suffix\s*:?\s*(.+)", ipconf)
+        ip_addr = re.search(r"IPv4 Address\s*.*:\s*([\d\.]+)", ipconf)
+        gateway = re.search(r"Default Gateway\s*.*:\s*([\d\.]+)", ipconf)
+        net_mask = re.search(r"Subnet Mask\s*.*:\s*([\d\.]+)", ipconf)
         # There could be multiple DNS servers, this only takes one for now
-        dns_server = re.search(r"DNS Servers\s*:\s*(.+)", ipconf)
+        dns_server = re.search(r"DNS Servers\s*.*:\s*([\d\.]+)", ipconf)
         
         return_line = []
         if hostname:
@@ -181,7 +185,7 @@ def get_w_Storage():
 
 def get_w_processors():
     try:
-        result = subprocess.check_output(["wmic", "logicaldisk", "get", "name,numberofcores,numberoflogicalprocessors"], text=True)
+        result = subprocess.check_output(["wmic", "cpu", "get", "name,", "NumberOfCores,", "NumberOfLogicalProcessors"], text=True)
         lines = result.strip().splitlines()
         
         processors = []
@@ -218,6 +222,7 @@ def w_resolve_DNS(domain_name):
 def main_menu(operating_system):
     iteration = 1
     while iteration == 1:
+        clear_terminal(operating_system)
         print("Welcome to Basic Connectivity Troubleshooter")
         
         choice = str(input("\n\t1.\tNetwork Configuration Settings" +
@@ -226,14 +231,14 @@ def main_menu(operating_system):
                             "\n\t4.\tRun Ping Tests" +
                             "\n\t5.\tRun NSlookup Tests" +
                             "\n\t6.\tQuit Troubleshooter" +
-                            "\nPlease Select an input from 1 - 6"))
+                            "\nPlease Select an input from 1 - 6:\t\t\t"))
         
         # First check if the user input is proper
         if choice == "6":
             iteration += 1
         elif choice == "1" or choice == "2" or choice == "3" or choice == "4" or choice == "5":
             # Check if the current operating system is linux or Windows, run the separate functions
-            clear_terminal()
+            clear_terminal(operating_system)
             if operating_system == "Linux":
                 if choice == "1":
                     # Network Configs
@@ -248,12 +253,16 @@ def main_menu(operating_system):
                     print_processors(get_l_processors())
                 elif choice == "4":
                     # Ping tests
-                    c = str(input("Please Input the target IP Address"))
+                    c = str(input("Please Input the target IP Address:\t"))
                     l_ping_test(c)
                 else:
                     # NSlookup tests
-                    c = str(input("Please Input the target Domain Name"))
+                    c = str(input("Please Input the target Domain Name:\t"))
                     l_resolve_DNS(c)
+                    
+                for i in range(6):
+                    print(f"...Returning to Main Screen in {5 - i} Seconds...")
+                    time.sleep(1)
             elif operating_system == "Windows":
                 if choice == "1":
                     # Network Configs
@@ -268,30 +277,34 @@ def main_menu(operating_system):
                     print_processors(get_w_processors())
                 elif choice == "4":
                     # Ping tests
-                    c = str(input("Please Input the target IP Address"))
+                    c = str(input("Please Input the target IP Address:\t"))
                     w_ping_test(c)
                 else:
                     # NSlookup tests
-                    c = str(input("Please Input the target Domain Name"))
+                    c = str(input("Please Input the target Domain Name:\t"))
                     w_resolve_DNS(c)
+                
+                for i in range(6):
+                    print(f"...Returning to Main Screen in {5 - i} Seconds...")
+                    time.sleep(1)
         else:
             print("Please Enter a Valid input from 1 - 6")
     
-    print("...Returning Back to Main Screen...")
-    time.sleep(5)
+    print("...Exiting...")
+    time.sleep(2)
 
 def print_network(hostname, domain, ip_addr, gateway, netmask, dns_servers):
     print(f"Hostname\t\t:\t\t{hostname}" +
-          f"\nDomain\t\t:\t\t{domain}" +
+          f"\nDomain\t\t\t:\t\t{domain}" +
           f"\nIP Address\t\t:\t\t{ip_addr}" +
-          f"\nDefault Gateway\t:\t\t{gateway}" +
+          f"\nDefault Gateway\t\t:\t\t{gateway}" +
           f"\nNetwork/Subnet Mask\t:\t\t{netmask}")
     
     temp_string = ""
     for server in dns_servers:
         temp_string += server + "\n\t\t\t\t"
         
-    print(f"DNS Servers:\t\t{temp_string}")
+    print(f"DNS Servers\t\t:\t\t{temp_string}")
 
 def print_storage(drives):
     print("Device\t\tTotal Size\t\tFree Space")
@@ -299,12 +312,14 @@ def print_storage(drives):
         print(f"{drive[0]}\t\t\t{drive[1]}\t\t\t{drive[2]}")
         
 def print_processors(processors):
-    print("Model Name\t\t\tNumber of Cores\t\tNumber of Logical Processors")
+    print("Model Name\t\t\t\t\t\tNumber of Cores\t\tNumber of Logical Processors")
     for proc in processors:
-        print(f"{proc[0]}\t\t{proc[1]}\t\t\t{proc[2]}")
+        print(f"{proc[0]}\t\t\t\t{proc[1]}\t\t\t{proc[2]}")
 
 def main():
-    operating_system()
+    system = operating_system()
+    
+    main_menu(system)
 
     print("GoodBye")
 
