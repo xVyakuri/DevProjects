@@ -19,30 +19,29 @@ import os
 import time
 import re
 
+def run_cmd(cmd):
+    try:
+        result = subprocess.run(["powershell", "-Command", cmd], capture_output=True, text=True, check=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Error Running the command: {cmd}\n{e}")
+
 # Install Active Directory ADUC, DHCP, DNS given a Domain Name to Promote Server to a Domain Controller
 def install_tools(dm):
     try:
-        aduc = subprocess.run(["powershell", "-Command", "Install-WindowsFeature RSAT-ADDS"], capture_output=True, text=True, check=True)
-        dhcp = subprocess.run(["powershell", "-Command", "Install-WindowsFeature DHCP -IncludeManagementTools"], capture_output=True, text=True, check=True)
-        dns = subprocess.run(["powershell", "-Command", "Install-WindowsFeature DNS -IncludeManagementTools"], capture_output=True, text=True, check=True)
-        
-        print(aduc.stdout)
-        print(dhcp.stdout)
-        print(dns.stdout)
+        print(run_cmd("Install-WindowsFeature RSAT-ADDS"))
+        print(run_cmd("Install-WindowsFeature DHCP -IncludeManagementTools"))
+        print(run_cmd("Install-WindowsFeature DNS -IncludeManagementTools"))
         
         # Assume Active Directory is the DNS Server for this program
         ipconf = subprocess.check_output(["ipconfig", "/all"], text=True)
         ip_addr = re.search(r"IPv4 Address\s*.*:\s*([\d\.]+)", ipconf)
         
         # Promote to Domain Controller
-        temp_command = f'Install-ADDSForest -DomainName "{dm}" -InstallDNS -Force'
-        promote = subprocess.run(["powershell", "-Command", temp_command], capture_output=True, text=True, check=True)
-        print(promote.stdout)
+        print(run_cmd(f'Install-ADDSForest -DomainName "{dm}" -InstallDNS -Force'))
         
         # Authorize DHCP Server
-        temp_command = f'Add-DhcpServerInDC -DnsName "{dm}" -IpAddress {ip_addr}'
-        auth = subprocess.run(["powershell", "-Command", temp_command], capture_output=True, text=True, check=True)
-        print(auth.stdout)
+        print(run_cmd(f'Add-DhcpServerInDC -DnsName "{dm}" -IpAddress {ip_addr}'))
         
     except subprocess.CalledProcessError as e:
         print(f"Error in Installing ADUC, DHCP, and DNS: {e.stderr}")
